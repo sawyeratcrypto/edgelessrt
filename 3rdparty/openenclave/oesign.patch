@@ -1,0 +1,92 @@
+From fe9be4e10387019a30c9a987914762bc0746d781 Mon Sep 17 00:00:00 2001
+From: sawyerzhang <sawyer.zhang@crypto.com>
+Date: Thu, 10 Nov 2022 22:31:04 +0300
+Subject: [PATCH] Enable digest sign
+
+---
+ tools/oesign/main.c   | 17 ++++++++++++++---
+ tools/oesign/oesign.c |  4 ++--
+ 2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/tools/oesign/main.c b/tools/oesign/main.c
+index 3d08a949d..ab0f8d65d 100644
+--- a/tools/oesign/main.c
++++ b/tools/oesign/main.c
+@@ -31,7 +31,8 @@ int oesign(
+ int oedigest(
+     const char* enclave,
+     const char* conffile,
+-    const char* digest_file);
++    const char* digest_file,
++    const char* payload_path);
+ int oesignerid(const char* keyfile);
+ int eradump(const char* enc_bin);
+ 
+@@ -508,12 +509,14 @@ int digest_parser(int argc, const char* argv[])
+     const char* enclave = NULL;
+     const char* conffile = NULL;
+     const char* digest_file = NULL;
++    const char* payload_path= NULL;
+ 
+     const struct option long_options[] = {
+         {"help", no_argument, NULL, 'h'},
+         {"enclave-image", required_argument, NULL, 'e'},
+         {"config-file", required_argument, NULL, 'c'},
+         {"digest-file", required_argument, NULL, 'd'},
++        {"payload-path", required_argument, NULL, 'p'},
+         {NULL, 0, NULL, 0},
+     };
+     const char short_options[] = "he:c:d:";
+@@ -551,6 +554,9 @@ int digest_parser(int argc, const char* argv[])
+             case 'd':
+                 digest_file = optarg;
+                 break;
++             case 'p':
++                payload_path= optarg;
++                break;
+             case ':':
+                 // Missing option argument
+                 ret = 1;
+@@ -576,10 +582,15 @@ int digest_parser(int argc, const char* argv[])
+         ret = 1;
+         goto done;
+     }
+-
++    if (payload_path == NULL)
++    {
++        oe_err("--payload-path option is missing");
++        ret = 1;
++        goto done;
++    }
+     if (!ret)
+     {
+-        ret = oedigest(enclave, conffile, digest_file);
++        ret = oedigest(enclave, conffile, digest_file, payload_path);
+     }
+ 
+ done:
+diff --git a/tools/oesign/oesign.c b/tools/oesign/oesign.c
+index 1b4671051..0d4d5d112 100644
+--- a/tools/oesign/oesign.c
++++ b/tools/oesign/oesign.c
+@@ -903,7 +903,7 @@ done:
+     return ret;
+ }
+ 
+-int oedigest(const char* enclave, const char* conffile, const char* digest_file)
++int oedigest(const char* enclave, const char* conffile, const char* digest_file, const char* payload_path)
+ {
+     int ret = -1;
+     oe_result_t result = OE_UNEXPECTED;
+@@ -915,7 +915,7 @@ int oedigest(const char* enclave, const char* conffile, const char* digest_file)
+         _initialize_enclave_properties(enclave, conffile, &properties));
+ 
+     OE_CHECK_NO_TRACE(
+-        _get_sgx_enclave_hash(enclave, &properties, &mrenclave, NULL));
++        _get_sgx_enclave_hash(enclave, &properties, &mrenclave, payload_path));
+ 
+     /* Construct the unsigned sigstruct with the MRENCLAVE and get its digest */
+     OE_CHECK_ERR(
+-- 
+2.25.1
+
